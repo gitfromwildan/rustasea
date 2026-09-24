@@ -1,8 +1,14 @@
 name: Auto Assign Reviewer
 
 # Requests a review from vheins on every PR that targets master.
+#
+# `pull_request_target` runs in the base repository's context, so the token can
+# request reviewers on PRs opened from forks; a `pull_request` run from a fork
+# only gets a read-only token and fails with "Resource not accessible by
+# integration". This is safe here because the job never checks out or runs the
+# PR's code: it only calls the REST API.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, ready_for_review, reopened, synchronize]
     branches: [master]
 

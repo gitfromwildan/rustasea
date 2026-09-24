@@ -459,7 +459,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("@@app_pascal@@ listening on http://{addr}");
 
-    axum::serve(listener, router)
+    // `ConnectInfo` hands every request its client IP (throttle keys, audit logs).
+    axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(app.shutdown())
         .await?;
     Ok(())

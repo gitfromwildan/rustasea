@@ -387,9 +387,17 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// Serializes the tests that reset and read the process-wide heartbeat
+    /// registry: run in parallel, one test's `clear`/`stamp_at` lands in the
+    /// middle of the other's snapshot.
+    static HEARTBEATS_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     /// `workers` renders the heartbeat registry as ordered, active rows.
     #[test]
     fn workers_renders_heartbeats() {
+        let _serial = HEARTBEATS_LOCK
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         heartbeat::clear();
         let at = Utc
             .timestamp_opt(1_700_000_000, 0)
@@ -406,6 +414,9 @@ mod tests {
     /// A stale heartbeat is reported but flagged `active == false`.
     #[test]
     fn workers_flags_stale_heartbeats_inactive() {
+        let _serial = HEARTBEATS_LOCK
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         heartbeat::clear();
         let now = Utc::now();
         heartbeat::stamp_at("qd-fresh", now);

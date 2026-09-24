@@ -134,14 +134,14 @@ cargo test -p rustasea-storage --features sftp --test sftp_container -- --ignore
    | Job | What it runs |
    |---|---|
    | `quality` | `cargo xtask ci` (fmt, clippy with `-D warnings` on the workspace and on `rustasea-storage --features aws,sftp`, `deps:check`, `lines:check`, cycle check) |
-   | `test` | `cargo test --workspace`, then `cargo test -p rustasea-storage --features aws,sftp` |
+   | `test` | `cargo fetch`, then `cargo test --workspace --no-fail-fast` and `cargo test -p rustasea-storage --features aws,sftp` |
    | `deny` | `cargo deny check` |
    | `audit` | `cargo audit` |
    | `msrv` | `cargo check --workspace` on Rust 1.88.0 |
 
    Formatting violations fail the build: run `cargo fmt --all` before pushing.
 
-   CI uses [sccache](https://github.com/mozilla/sccache) (`mozilla-actions/sccache-action`) to cache Rust compilation across the `quality`, `test`, and `msrv` jobs.
+   CI uses [sccache](https://github.com/mozilla/sccache) (`mozilla-actions/sccache-action`) to cache Rust compilation across the `quality`, `test`, and `msrv` jobs. Locally it is opt-in: install sccache and export `RUSTC_WRAPPER=sccache` (or set `build.rustc-wrapper` in your own `~/.cargo/config.toml`).
 4. Address review feedback with new commits; avoid rewriting shared history.
 
 ## Coding standards

@@ -21,9 +21,11 @@
 //! [`AuthenticationLogLogger`]: rustasea_authlog::AuthenticationLogLogger
 //! [`PROVIDER_LOCK`]: super::settings_flows::PROVIDER_LOCK
 
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::body::Body;
+use axum::extract::ConnectInfo;
 use axum::http::{header, HeaderValue, Request, StatusCode};
 use axum::Router;
 use rustasea::auth::users::AuthUserRecord;
@@ -131,6 +133,13 @@ fn login_post(email: &str, password: &str) -> Request<Body> {
     request
 }
 
+/// Attach a client peer address, as the production server does for every request.
+fn from_peer(mut request: Request<Body>, ip: &str) -> Request<Body> {
+    let addr = SocketAddr::new(ip.parse().expect("peer ip"), 54321);
+    request.extensions_mut().insert(ConnectInfo(addr));
+    request
+}
+
 /// Extract the `rustasea-session` cookie value from a response's `Set-Cookie`.
 fn session_cookie(headers: &axum::http::HeaderMap) -> Option<String> {
     let raw = headers.get(header::SET_COOKIE)?.to_str().ok()?;
@@ -148,7 +157,7 @@ async fn successful_login_records_row() {
     let logger = Arc::new(AuthenticationLogLogger::new(pool.clone()));
     let _guard = LoggerGuard::install(logger.clone());
 
-    let mut request = login_post(EMAIL, PASSWORD);
+    let mut request = from_peer(login_post(EMAIL, PASSWORD), "203.0.113.10");
     request
         .headers_mut()
         .insert(header::USER_AGENT, HeaderValue::from_static("test-agent"));
@@ -160,7 +169,7 @@ async fn successful_login_records_row() {
     let row = &rows[0];
     assert_eq!(row.event, "login_succeeded");
     assert_eq!(row.user_id.as_deref(), Some("user-1"));
-    assert_eq!(row.ip_address.as_deref(), Some("0.0.0.0"));
+    assert_eq!(row.ip_address.as_deref(), Some("203.0.113.10"));
     assert_eq!(row.user_agent.as_deref(), Some("test-agent"));
     assert!(row.successful);
     assert!(row.login_at.is_some());
@@ -260,4 +269,98 @@ async fn logout_fills_open_row() {
         "logout must fill `logout_at` on the open row"
     );
     pool.close().await;
+}
+
+/// Send a `POST /login` over a real TCP connection and return the status code.
+///
+/// Drives the served socket rather than `Router::oneshot`, so the request goes
+/// through the same connection handling as production.
+async fn login_over_tcp(addr: SocketAddr, email: &str, password: &str) -> u16 {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let body = format!("email={email}&password={password}");
+    let request = format!(
+        "POST /login HTTP/1.1\r\nhost: {addr}\r\n\
+         content-type: application/x-www-form-urlencoded\r\ncontent-length: {}\r\n\
+         x-csrf-token: {}\r\nsec-fetch-site: same-origin\r\nconnection: close\r\n\r\n{body}",
+        body.len(),
+        crate::routes::helpers::csrf_token(),
+    );
+    let mut stream = tokio::net::TcpStream::connect(addr).await.expect("connect");
+    stream
+        .write_all(request.as_bytes())
+        .await
+        .expect("write request");
+    let mut response = Vec::new();
+    stream
+        .read_to_end(&mut response)
+        .await
+        .expect("read response");
+    String::from_utf8_lossy(&response)
+        .split_whitespace()
+        .nth(1)
+        .and_then(|code| code.parse().ok())
+        .expect("status line")
+}
+
+/// The production serve path attaches the connection's peer address, so a
+/// login over real TCP is logged with the client IP. Without `ConnectInfo`
+/// every request fell back to `0.0.0.0` and shared one throttle bucket.
+#[tokio::test]
+async fn served_app_logs_the_connection_peer() {
+    let _lock = super::settings_flows::PROVIDER_LOCK.lock().await;
+    install_provider();
+    let pool = pool_with_table().await;
+    let logger = Arc::new(AuthenticationLogLogger::new(pool.clone()));
+    let _guard = LoggerGuard::install(logger.clone());
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local addr");
+    let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(crate::serve(listener, app_with_guard(), async {
+        let _ = stopped.await;
+    }));
+
+    let status = login_over_tcp(addr, EMAIL, PASSWORD).await;
+    let _ = stop.send(());
+    server.await.expect("server task").expect("serve");
+
+    assert_eq!(status, StatusCode::SEE_OTHER.as_u16(), "login must succeed");
+    let rows = logger.latest(10).await.expect("query");
+    assert_eq!(rows.len(), 1, "exactly one row");
+    assert_eq!(rows[0].ip_address.as_deref(), Some("127.0.0.1"));
+    pool.close().await;
+}
+
+/// The `login` throttle keys on the client peer: five failed attempts lock that
+/// client out, while a different client can still log in as the same user.
+/// With every request on `0.0.0.0`, any client could lock any username out.
+#[tokio::test]
+async fn lockout_is_scoped_to_the_client_peer() {
+    let _lock = super::settings_flows::PROVIDER_LOCK.lock().await;
+    install_provider();
+
+    let attacker = "203.0.113.21";
+    for _ in 0..5 {
+        let request = from_peer(login_post(EMAIL, "wrong-password"), attacker);
+        let (status, _, _) = call(app_with_guard(), request).await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    let request = from_peer(login_post(EMAIL, "wrong-password"), attacker);
+    let (status, _, _) = call(app_with_guard(), request).await;
+    assert_eq!(
+        status,
+        StatusCode::TOO_MANY_REQUESTS,
+        "the attacking client is throttled"
+    );
+
+    let request = from_peer(login_post(EMAIL, PASSWORD), "203.0.113.22");
+    let (status, _, _) = call(app_with_guard(), request).await;
+    assert_eq!(
+        status,
+        StatusCode::SEE_OTHER,
+        "another client still logs in as the same user"
+    );
 }

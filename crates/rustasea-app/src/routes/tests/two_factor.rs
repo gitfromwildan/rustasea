@@ -10,11 +10,13 @@
 //! [`MemoryUserProvider`]: rustasea::auth::MemoryUserProvider
 //! [`PROVIDER_LOCK`]: super::settings_flows::PROVIDER_LOCK
 
+use std::net::SocketAddr;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
-use axum::extract::Extension;
+use axum::extract::{ConnectInfo, Extension};
 use axum::http::{header, HeaderMap, HeaderValue, Request, StatusCode};
 use axum::Router;
 use rustasea::auth::users::{AuthUserRecord, MemoryUserRegistry};
@@ -227,11 +229,27 @@ async fn confirm(secret: &str) {
     assert_eq!(status, StatusCode::OK, "confirm: {body}");
 }
 
+/// Last octet of the peer address handed to the next login (see [`unique_peer`]).
+static NEXT_PEER_OCTET: AtomicU8 = AtomicU8::new(1);
+
+/// A distinct loopback peer for one login request.
+///
+/// The `login` limiter allows five attempts per minute per `username|ip`, and
+/// its registry is process-wide. Without `ConnectInfo` every test login
+/// resolves to the same `0.0.0.0` peer, so the lifecycle test's five logins as
+/// `ada@example.com`, on top of other modules' logins as the same user, hit
+/// `429`. A fresh peer per login keeps each request in its own bucket.
+fn unique_peer() -> ConnectInfo<SocketAddr> {
+    let octet = NEXT_PEER_OCTET.fetch_add(1, Ordering::Relaxed);
+    ConnectInfo(SocketAddr::from(([127, 0, 2, octet], 54321)))
+}
+
 /// Start a challenge by logging in; returns the pending session id.
 async fn start_challenge(guard: &Arc<SessionGuard>) -> String {
     let body = format!("email={USER_A_EMAIL}&password={USER_A_PASSWORD}");
-    let (status, headers, response) =
-        call(app_with_guard(guard.clone()), post("/login", &body)).await;
+    let mut request = post("/login", &body);
+    request.extensions_mut().insert(unique_peer());
+    let (status, headers, response) = call(app_with_guard(guard.clone()), request).await;
     assert_eq!(status, StatusCode::FOUND, "login: {response}");
     assert_eq!(location(&headers).as_deref(), Some("/two-factor-challenge"));
     cookie_value(&headers, SESSION_COOKIE_NAME).expect("pending session cookie")
