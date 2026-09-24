@@ -53,10 +53,27 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("RustaSea dev server listening on http://{addr}");
 
-    axum::serve(listener, router)
-        .with_graceful_shutdown(app.shutdown())
-        .await?;
+    serve(listener, router, app.shutdown()).await?;
     Ok(())
+}
+
+/// Serve `router` on `listener` until `shutdown` resolves.
+///
+/// Every request carries the connection's peer address as
+/// `ConnectInfo<SocketAddr>`: the login throttle and the authentication log key
+/// on the client IP, and without it every client falls back to `0.0.0.0` and
+/// shares one throttle bucket.
+pub(crate) async fn serve(
+    listener: tokio::net::TcpListener,
+    router: axum::Router,
+    shutdown: impl std::future::Future<Output = ()> + Send + 'static,
+) -> std::io::Result<()> {
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown)
+    .await
 }
 
 /// Resolve the bind address from `APP_URL` (host:port) or the default.
