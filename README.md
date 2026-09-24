@@ -416,6 +416,7 @@ The `rustasea` umbrella crate re-exports the whole framework, but several crates
 | `action` | `dep:rustasea-action` | Action pattern adapters for HTTP/queue/CLI/events, `make:action` (ADOPT-028) |
 | `google` | `dep:rustasea-google` | Service-account auth with cached OAuth2 access tokens (ADOPT-026) |
 | `storage-sftp` | `rustasea-storage/sftp` | Pure-Rust `russh`/`russh-sftp` SFTP disk (ADOPT-025) |
+| `storage-s3` | `rustasea-storage/aws` | S3 disk for AWS or S3-compatible services (RustFS, MinIO, R2), with the `AWS_*` env overlay and plain-HTTP local endpoints (needs rustc 1.89+, via `crc-fast`) |
 | `excel` | `dep:rustasea-excel` | Excel/CSV import-export with queued jobs and signed links (ADOPT-023) |
 | `image` | `dep:rustasea-image` | Image transform pipeline with EXIF auto-orient (ADOPT-024) |
 | `debugbar` | `dep:rustasea-debugbar` | Dev request profiler / debug toolbar (ADOPT-009) |

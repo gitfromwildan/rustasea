@@ -6,9 +6,10 @@
 # contract (read-through with optional copy-back to the primary).
 #
 # Cloud drivers are opt-in: enable the matching crate feature
-# (`rustasea-storage/{aws,gcp,azure}`) before referencing `s3`, `gcs`, or
-# `azure` disks. The `sftp` driver is likewise opt-in
-# (`rustasea-storage/sftp`, or `storage-sftp` on the `rustasea` facade crate).
+# (`rustasea-storage/{aws,gcp,azure}`, or `storage-s3` on the `rustasea` facade
+# crate for `s3`) before referencing `s3`, `gcs`, or `azure` disks. The `sftp`
+# driver is likewise opt-in (`rustasea-storage/sftp`, or `storage-sftp` on the
+# `rustasea` facade crate).
 
 [storage]
 default = "local"
