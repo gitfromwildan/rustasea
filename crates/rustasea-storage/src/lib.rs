@@ -9,8 +9,12 @@ pub mod error;
 pub mod facade;
 pub mod manager;
 pub mod path;
+pub mod s3;
 pub mod sftp;
 pub mod storage;
+
+#[cfg(test)]
+mod test_support;
 
 pub use crate::disk::{DiskKind, LocalDisk, ReadThrough, ReadThroughDisk};
 pub use crate::error::{PathError, Result, StorageError};

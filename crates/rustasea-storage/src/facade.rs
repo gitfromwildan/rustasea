@@ -17,6 +17,8 @@ use crate::disk::LocalDisk;
 use crate::error::{Result, StorageError};
 use crate::manager::{ManagedDisk, StorageConfig, StorageManager};
 
+pub use crate::s3::S3DiskConfig;
+
 /// Top-level `[storage]` configuration document.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
 pub struct StorageFacadeConfig {
@@ -138,28 +140,6 @@ pub struct DiskSettings {
 pub struct LocalDiskConfig {
     /// Root directory that confines every key.
     pub root: String,
-    /// Shared Laravel-parity disk settings.
-    #[serde(flatten, default)]
-    pub settings: DiskSettings,
-}
-
-/// Configuration for an S3 disk.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct S3DiskConfig {
-    /// Bucket name.
-    pub bucket: String,
-    /// AWS region (falls back to the SDK default when absent).
-    #[serde(default)]
-    pub region: Option<String>,
-    /// Explicit access key id (prefer environment/secret manager).
-    #[serde(default)]
-    pub access_key_id: Option<String>,
-    /// Explicit secret access key (prefer environment/secret manager).
-    #[serde(default)]
-    pub secret_access_key: Option<String>,
-    /// Custom endpoint for S3-compatible services (MinIO, R2).
-    #[serde(default)]
-    pub endpoint: Option<String>,
     /// Shared Laravel-parity disk settings.
     #[serde(flatten, default)]
     pub settings: DiskSettings,
@@ -345,4 +325,13 @@ fn build_sftp(_config: &crate::sftp::SftpDiskConfig, name: &str) -> Result<Arc<d
     Err(StorageError::StoreUnavailable(format!(
         "disk {name}: the `sftp` driver requires the `sftp` feature"
     )))
+}
+
+/// Read an environment variable, treating unset or blank values as absent.
+///
+/// Shared by the per-driver environment overlays (`SftpDiskConfig::apply_env`).
+pub(crate) fn env_non_empty(key: &str) -> Option<String> {
+    std::env::var(key)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
 }
