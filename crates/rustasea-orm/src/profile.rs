@@ -116,6 +116,12 @@ pub async fn track<R>(
 mod tests {
     use super::*;
 
+    /// Serializes the tests that install, clear, or rely on the process-wide
+    /// recorder slot: run in parallel, one test's `clear_query_recorder` or
+    /// `register_query_recorder` lands in the middle of another's `track` call.
+    /// A tokio mutex, so the async tests can hold it across `.await`.
+    static RECORDER_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
     /// Verifies the registry round-trips an installed recorder.
     #[test]
     fn recorder_registry_round_trips() {
@@ -123,6 +129,7 @@ mod tests {
         impl QueryRecorder for Noop {
             fn record(&self, _event: SqlQueryEvent) {}
         }
+        let _serial = RECORDER_LOCK.blocking_lock();
         clear_query_recorder();
         assert!(query_recorder().is_none());
         register_query_recorder(Arc::new(Noop));
@@ -146,9 +153,14 @@ mod tests {
             }
         }
 
+        // Unique SQL, so a query tracked by a concurrent DB test while this
+        // recorder is installed cannot be mistaken for this test's event.
+        const SQL: &str = "SELECT $1 -- profile::track_records_success_with_original_sql";
+
+        let _serial = RECORDER_LOCK.lock().await;
         let recorder = Arc::new(Capturing::default());
         register_query_recorder(recorder.clone());
-        let value = track("fetch_json", "SELECT $1", async {
+        let value = track("fetch_json", SQL, async {
             Ok::<_, crate::error::OrmError>(7)
         })
         .await
@@ -157,15 +169,16 @@ mod tests {
 
         assert_eq!(value, 7);
         let events = recorder.events.lock().unwrap();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].kind, "fetch_json");
-        assert_eq!(events[0].sql, "SELECT $1");
-        assert!(events[0].error.is_none());
+        let ours: Vec<&SqlQueryEvent> = events.iter().filter(|event| event.sql == SQL).collect();
+        assert_eq!(ours.len(), 1);
+        assert_eq!(ours[0].kind, "fetch_json");
+        assert!(ours[0].error.is_none());
     }
 
     /// Verifies `track` runs untouched (and records nothing) with no recorder.
     #[tokio::test]
     async fn track_without_recorder_passes_through() {
+        let _serial = RECORDER_LOCK.lock().await;
         clear_query_recorder();
         let value = track("execute_bind", "DELETE FROM t", async {
             Ok::<_, crate::error::OrmError>(3)
