@@ -73,8 +73,10 @@ jobs:
       # every locked crate, for every target, before the tests run.
       - name: cargo fetch
         run: cargo fetch
+      # `--no-fail-fast` reports every failing test in one run instead of
+      # stopping at the first failing test binary.
       - name: cargo test
-        run: cargo test --workspace
+        run: cargo test --workspace --no-fail-fast
 
   # Supply-chain gate: license allow-list, advisory database, banned crates and
   # source provenance (configuration in deny.toml).
