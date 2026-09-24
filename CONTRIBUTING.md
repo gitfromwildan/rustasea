@@ -126,7 +126,7 @@ cargo test -p rustasea --features integration -- --ignored
    | Job | What it runs |
    |---|---|
    | `quality` | `cargo xtask ci` (fmt, clippy with `-D warnings`, `deps:check`, `lines:check`, cycle check) |
-   | `test` | `cargo test --workspace` |
+   | `test` | `cargo fetch`, then `cargo test --workspace --no-fail-fast` |
    | `deny` | `cargo deny check` |
    | `audit` | `cargo audit` |
    | `msrv` | `cargo check --workspace` on Rust 1.88.0 |
