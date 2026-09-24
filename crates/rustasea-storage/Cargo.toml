@@ -33,6 +33,7 @@ azure = ["object_store/azure"]
 sftp = ["dep:russh", "dep:russh-sftp"]
 
 [dev-dependencies]
-# Docker-backed SFTP integration tests (`tests/sftp_container.rs`), run only
-# with `--features sftp -- --ignored`.
+# Docker-backed integration tests, run only with `-- --ignored`: SFTP
+# (`tests/sftp_container.rs`, `--features sftp`) and RustFS-backed S3
+# (`tests/rustfs_container.rs`, `--features aws`).
 testcontainers = { workspace = true }

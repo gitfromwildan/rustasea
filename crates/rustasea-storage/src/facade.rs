@@ -220,23 +220,18 @@ impl StorageManager {
 }
 
 /// Build an S3-backed disk.
+///
+/// The `AWS_*` environment overlay is applied and the config validated before
+/// the `object_store` builder is configured (see [`S3DiskConfig::apply_env`]).
 #[cfg(feature = "aws")]
 fn build_s3(config: &S3DiskConfig, name: &str) -> Result<Arc<dyn ManagedDisk>> {
-    let mut builder =
-        object_store::aws::AmazonS3Builder::new().with_bucket_name(config.bucket.clone());
-    if let Some(region) = &config.region {
-        builder = builder.with_region(region.clone());
+    let mut config = config.clone();
+    config.apply_env();
+    if let Err(error) = config.validate() {
+        return Err(StorageError::Config(format!("disk {name}: {error}")));
     }
-    if let Some(key_id) = &config.access_key_id {
-        builder = builder.with_access_key_id(key_id.clone());
-    }
-    if let Some(secret) = &config.secret_access_key {
-        builder = builder.with_secret_access_key(secret.clone());
-    }
-    if let Some(endpoint) = &config.endpoint {
-        builder = builder.with_endpoint(endpoint.clone());
-    }
-    let store = builder
+    let store = config
+        .builder()
         .build()
         .map_err(|e| StorageError::StoreUnavailable(format!("disk {name}: {e}")))?;
     Ok(Arc::new(crate::ObjectDisk::new(
@@ -329,7 +324,8 @@ fn build_sftp(_config: &crate::sftp::SftpDiskConfig, name: &str) -> Result<Arc<d
 
 /// Read an environment variable, treating unset or blank values as absent.
 ///
-/// Shared by the per-driver environment overlays (`SftpDiskConfig::apply_env`).
+/// Shared by the per-driver environment overlays (`S3DiskConfig::apply_env`,
+/// `SftpDiskConfig::apply_env`).
 pub(crate) fn env_non_empty(key: &str) -> Option<String> {
     std::env::var(key)
         .ok()
