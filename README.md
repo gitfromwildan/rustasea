@@ -760,7 +760,8 @@ cargo xtask migrate  # run migrations
 ```
 
 CI runs the same gate — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
-`quality` (`cargo xtask ci`), `test` (`cargo test --workspace`), `deny`
+`quality` (`cargo xtask ci`), `test` (`cargo test --workspace`, plus
+`rustasea-storage` with its opt-in `aws`/`sftp` drivers), `deny`
 (`cargo deny check`), `audit` (`cargo audit`), and an `msrv` job that checks the
 workspace builds on the 1.88 floor (ADR-0001). **Formatting violations fail the
 build**: run `cargo fmt --all` before pushing, or `cargo xtask fmt` to check.
