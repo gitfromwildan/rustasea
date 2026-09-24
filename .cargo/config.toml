@@ -1,6 +1,7 @@
-[build]
-rustc-wrapper = "/home/vheins/.cargo/bin/sccache"
-
+# sccache is opt-in: export `RUSTC_WRAPPER=sccache` (or set
+# `build.rustc-wrapper` in your own `~/.cargo/config.toml`) to route rustc
+# through it. A machine-specific wrapper path here would break every other
+# checkout; CI sets `RUSTC_WRAPPER` only in the jobs that install sccache.
 [env]
 SCCACHE_CACHE_SIZE = "5G"
 CARGO_INCREMENTAL = "0"

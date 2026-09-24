@@ -133,7 +133,7 @@ cargo test -p rustasea --features integration -- --ignored
 
    Formatting violations fail the build: run `cargo fmt --all` before pushing.
 
-   CI uses [sccache](https://github.com/mozilla/sccache) (`mozilla-actions/sccache-action`) to cache Rust compilation across the `quality`, `test`, and `msrv` jobs.
+   CI uses [sccache](https://github.com/mozilla/sccache) (`mozilla-actions/sccache-action`) to cache Rust compilation across the `quality`, `test`, and `msrv` jobs. Locally it is opt-in: install sccache and export `RUSTC_WRAPPER=sccache` (or set `build.rustc-wrapper` in your own `~/.cargo/config.toml`).
 4. Address review feedback with new commits; avoid rewriting shared history.
 
 ## Coding standards
