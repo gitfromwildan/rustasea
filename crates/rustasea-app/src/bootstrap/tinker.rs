@@ -121,8 +121,14 @@ mod tests {
     use rustasea::foundation::CONFIG_LOADER_KEY;
 
     /// Build a container with a config loader + environment binding.
+    ///
+    /// Tests run with the crate root as their working directory, so the
+    /// process-relative `config/app` the app loads at runtime is never found
+    /// here. The workspace `config/app.toml` is located from
+    /// `CARGO_MANIFEST_DIR` instead (the crate lives two levels below it).
     fn container() -> (Arc<ConfigLoader>, Container) {
-        let loader = Arc::new(ConfigLoader::load_from(&["config/app"]).expect("load config"));
+        let app_config = concat!(env!("CARGO_MANIFEST_DIR"), "/../../config/app");
+        let loader = Arc::new(ConfigLoader::load_from(&[app_config]).expect("load config"));
         let mut container = Container::new();
         container.instance(CONFIG_LOADER_KEY, Arc::clone(&loader));
         container.instance("app.environment", "local".to_string());
@@ -134,8 +140,8 @@ mod tests {
     fn config_renders_json() {
         let (loader, container) = container();
         let source = AppTinkerSource::from_booted(loader, "local".to_string(), &container);
-        // `app_env` is always resolvable (defaulted) — it must render as a JSON
-        // string, never panic.
+        // `app_env` comes from `config/app.toml` (an `APP_ENV` set by a
+        // concurrent test only overrides it) and must render as a JSON string.
         let rendered = source.config("app_env").expect("app_env resolves");
         assert!(
             rendered.starts_with('"'),
