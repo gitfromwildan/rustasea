@@ -143,7 +143,7 @@ fn artisan_alias_generates_livewire_app() {
     let app = dir.join("demo-app");
     assert!(app.join("resources/views/partials/counter.html").exists());
     let manifest = std::fs::read_to_string(app.join("Cargo.toml")).expect("read manifest");
-    assert!(manifest.contains("features = [\"view\", \"broadcast\"]"));
+    assert!(manifest.contains("features = [\"view\", \"action\"]"));
 
     std::fs::remove_dir_all(&dir).ok();
 }
