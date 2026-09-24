@@ -6,8 +6,8 @@
 //!
 //! # Environment bridge
 //!
-//! Unlike the cloud drivers, SFTP has no layered `ConfigLoader` bridge in this
-//! crate, so a single-underscore `SFTP_*` overlay is applied by
+//! SFTP has no layered `ConfigLoader` bridge in this crate, so (like the `s3`
+//! driver's `AWS_*` overlay) a single-underscore `SFTP_*` overlay is applied by
 //! [`SftpDiskConfig::apply_env`]: `SFTP_HOST`, `SFTP_PORT`, `SFTP_USERNAME`,
 //! `SFTP_PASSWORD`, `SFTP_PRIVATE_KEY` (→ `private_key_path`), `SFTP_ROOT`, and
 //! `SFTP_TIMEOUT`.

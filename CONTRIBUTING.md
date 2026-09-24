@@ -92,6 +92,14 @@ The integration suite requires a running Docker daemon and is opt-in:
 cargo test -p rustasea --features integration -- --ignored
 ```
 
+The storage drivers have their own Docker-backed suites (RustFS for the `s3`
+disk, an SFTP server for the `sftp` disk):
+
+```bash
+cargo test -p rustasea-storage --features aws --test rustfs_container -- --ignored
+cargo test -p rustasea-storage --features sftp --test sftp_container -- --ignored
+```
+
 ## Branch and commit conventions
 
 - **Branch from `master`.** Use a short, descriptive branch name such as
@@ -125,8 +133,8 @@ cargo test -p rustasea --features integration -- --ignored
 
    | Job | What it runs |
    |---|---|
-   | `quality` | `cargo xtask ci` (fmt, clippy with `-D warnings`, `deps:check`, `lines:check`, cycle check) |
-   | `test` | `cargo fetch`, then `cargo test --workspace --no-fail-fast` |
+   | `quality` | `cargo xtask ci` (fmt, clippy with `-D warnings` on the workspace and on `rustasea-storage --features aws,sftp`, `deps:check`, `lines:check`, cycle check) |
+   | `test` | `cargo fetch`, then `cargo test --workspace --no-fail-fast` and `cargo test -p rustasea-storage --features aws,sftp` |
    | `deny` | `cargo deny check` |
    | `audit` | `cargo audit` |
    | `msrv` | `cargo check --workspace` on Rust 1.88.0 |

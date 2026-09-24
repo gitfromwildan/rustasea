@@ -181,6 +181,10 @@ broadcast-pusher = ["rustasea-broadcast/pusher"]
 # so `rustasea::storage` exposes the pure-Rust `russh`-backed SFTP disk; off by
 # default (pay-for-what-you-use, NFR-Sca-02).
 storage-sftp = ["rustasea-storage/sftp"]
+# S3 storage disk. Forwards to `rustasea-storage`'s `aws` feature so `s3` disks
+# (AWS or an S3-compatible service such as RustFS, MinIO, or R2) can be built
+# from `config/storage.toml`; off by default (pay-for-what-you-use, NFR-Sca-02).
+storage-s3 = ["rustasea-storage/aws"]
 # Locale-aware fake-data generation (ADOPT-012). Forwards to the testing crate's
 # opt-in `faker` feature so `rustasea::testing::faker` is available; off by
 # default (pay-for-what-you-use, NFR-Sca-02).

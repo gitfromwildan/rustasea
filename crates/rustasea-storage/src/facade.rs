@@ -17,6 +17,8 @@ use crate::disk::LocalDisk;
 use crate::error::{Result, StorageError};
 use crate::manager::{ManagedDisk, StorageConfig, StorageManager};
 
+pub use crate::s3::S3DiskConfig;
+
 /// Top-level `[storage]` configuration document.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
 pub struct StorageFacadeConfig {
@@ -143,28 +145,6 @@ pub struct LocalDiskConfig {
     pub settings: DiskSettings,
 }
 
-/// Configuration for an S3 disk.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct S3DiskConfig {
-    /// Bucket name.
-    pub bucket: String,
-    /// AWS region (falls back to the SDK default when absent).
-    #[serde(default)]
-    pub region: Option<String>,
-    /// Explicit access key id (prefer environment/secret manager).
-    #[serde(default)]
-    pub access_key_id: Option<String>,
-    /// Explicit secret access key (prefer environment/secret manager).
-    #[serde(default)]
-    pub secret_access_key: Option<String>,
-    /// Custom endpoint for S3-compatible services (MinIO, R2).
-    #[serde(default)]
-    pub endpoint: Option<String>,
-    /// Shared Laravel-parity disk settings.
-    #[serde(flatten, default)]
-    pub settings: DiskSettings,
-}
-
 /// Configuration for a Google Cloud Storage disk.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct GcsDiskConfig {
@@ -240,23 +220,18 @@ impl StorageManager {
 }
 
 /// Build an S3-backed disk.
+///
+/// The `AWS_*` environment overlay is applied and the config validated before
+/// the `object_store` builder is configured (see [`S3DiskConfig::apply_env`]).
 #[cfg(feature = "aws")]
 fn build_s3(config: &S3DiskConfig, name: &str) -> Result<Arc<dyn ManagedDisk>> {
-    let mut builder =
-        object_store::aws::AmazonS3Builder::new().with_bucket_name(config.bucket.clone());
-    if let Some(region) = &config.region {
-        builder = builder.with_region(region.clone());
+    let mut config = config.clone();
+    config.apply_env();
+    if let Err(error) = config.validate() {
+        return Err(StorageError::Config(format!("disk {name}: {error}")));
     }
-    if let Some(key_id) = &config.access_key_id {
-        builder = builder.with_access_key_id(key_id.clone());
-    }
-    if let Some(secret) = &config.secret_access_key {
-        builder = builder.with_secret_access_key(secret.clone());
-    }
-    if let Some(endpoint) = &config.endpoint {
-        builder = builder.with_endpoint(endpoint.clone());
-    }
-    let store = builder
+    let store = config
+        .builder()
         .build()
         .map_err(|e| StorageError::StoreUnavailable(format!("disk {name}: {e}")))?;
     Ok(Arc::new(crate::ObjectDisk::new(
@@ -345,4 +320,14 @@ fn build_sftp(_config: &crate::sftp::SftpDiskConfig, name: &str) -> Result<Arc<d
     Err(StorageError::StoreUnavailable(format!(
         "disk {name}: the `sftp` driver requires the `sftp` feature"
     )))
+}
+
+/// Read an environment variable, treating unset or blank values as absent.
+///
+/// Shared by the per-driver environment overlays (`S3DiskConfig::apply_env`,
+/// `SftpDiskConfig::apply_env`).
+pub(crate) fn env_non_empty(key: &str) -> Option<String> {
+    std::env::var(key)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
 }

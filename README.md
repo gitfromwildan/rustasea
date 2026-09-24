@@ -416,6 +416,7 @@ The `rustasea` umbrella crate re-exports the whole framework, but several crates
 | `action` | `dep:rustasea-action` | Action pattern adapters for HTTP/queue/CLI/events, `make:action` (ADOPT-028) |
 | `google` | `dep:rustasea-google` | Service-account auth with cached OAuth2 access tokens (ADOPT-026) |
 | `storage-sftp` | `rustasea-storage/sftp` | Pure-Rust `russh`/`russh-sftp` SFTP disk (ADOPT-025) |
+| `storage-s3` | `rustasea-storage/aws` | S3 disk for AWS or S3-compatible services (RustFS, MinIO, R2), with the `AWS_*` env overlay and plain-HTTP local endpoints (needs rustc 1.89+, via `crc-fast`) |
 | `excel` | `dep:rustasea-excel` | Excel/CSV import-export with queued jobs and signed links (ADOPT-023) |
 | `image` | `dep:rustasea-image` | Image transform pipeline with EXIF auto-orient (ADOPT-024) |
 | `debugbar` | `dep:rustasea-debugbar` | Dev request profiler / debug toolbar (ADOPT-009) |
@@ -760,7 +761,7 @@ cargo xtask migrate  # run migrations
 
 CI runs the same gate — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 `quality` (`cargo xtask ci`), `test` (`cargo fetch`, then `cargo test --workspace
---no-fail-fast`), `deny`
+--no-fail-fast`, plus `rustasea-storage` with its opt-in `aws`/`sftp` drivers), `deny`
 (`cargo deny check`), `audit` (`cargo audit`), and an `msrv` job that checks the
 workspace builds on the 1.88 floor (ADR-0001). **Formatting violations fail the
 build**: run `cargo fmt --all` before pushing, or `cargo xtask fmt` to check.
