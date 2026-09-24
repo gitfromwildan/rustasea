@@ -62,6 +62,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: cargo test
         run: cargo test --workspace
+      # The `s3` and `sftp` disks sit behind `rustasea-storage`'s opt-in `aws`
+      # and `sftp` features, so the default workspace run never compiles them.
+      # Their Docker-backed suites (RustFS, SFTP) stay `#[ignore]`d.
+      - name: cargo test (rustasea-storage, aws + sftp)
+        run: cargo test -p rustasea-storage --features aws,sftp
 
   # Supply-chain gate: license allow-list, advisory database, banned crates and
   # source provenance (configuration in deny.toml).

@@ -9,7 +9,7 @@
 use serde::Deserialize;
 
 use crate::error::{Result, StorageError};
-use crate::facade::DiskSettings;
+use crate::facade::{env_non_empty, DiskSettings};
 
 /// Default SSH port when `port` is omitted.
 pub const DEFAULT_SFTP_PORT: u16 = 22;
@@ -211,11 +211,4 @@ impl SftpDiskConfig {
     pub fn relative_prefix(prefix: &str) -> String {
         prefix.trim_matches('/').to_string()
     }
-}
-
-/// Read an environment variable, treating unset or blank values as absent.
-fn env_non_empty(key: &str) -> Option<String> {
-    std::env::var(key)
-        .ok()
-        .filter(|value| !value.trim().is_empty())
 }

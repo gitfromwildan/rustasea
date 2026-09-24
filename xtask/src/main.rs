@@ -58,7 +58,8 @@ fn main() {
     std::process::exit(code);
 }
 
-/// Run the full CI gate: fmt → clippy → deps:check → cycle check.
+/// Run the full CI gate: fmt → clippy (workspace, then the opt-in storage
+/// drivers) → deps:check → lines:check → cycle check.
 fn run_ci() -> i32 {
     let steps: &[(&str, &[&str])] = &[
         ("fmt", &["fmt", "--all", "--", "--check"]),
@@ -68,6 +69,23 @@ fn run_ci() -> i32 {
                 "clippy",
                 "--workspace",
                 "--all-targets",
+                "--",
+                "-D",
+                "warnings",
+            ],
+        ),
+        // The `s3` and `sftp` disks live behind `rustasea-storage`'s opt-in
+        // `aws` and `sftp` features, which the default workspace build never
+        // compiles.
+        (
+            "clippy (rustasea-storage --features aws,sftp)",
+            &[
+                "clippy",
+                "-p",
+                "rustasea-storage",
+                "--all-targets",
+                "--features",
+                "aws,sftp",
                 "--",
                 "-D",
                 "warnings",

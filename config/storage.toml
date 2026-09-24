@@ -6,9 +6,10 @@
 # contract (read-through with optional copy-back to the primary).
 #
 # Cloud drivers are opt-in: enable the matching crate feature
-# (`rustasea-storage/{aws,gcp,azure}`) before referencing `s3`, `gcs`, or
-# `azure` disks. The `sftp` driver is likewise opt-in
-# (`rustasea-storage/sftp`, or `storage-sftp` on the `rustasea` facade crate).
+# (`rustasea-storage/{aws,gcp,azure}`, or `storage-s3` on the `rustasea` facade
+# crate for `s3`) before referencing `s3`, `gcs`, or `azure` disks. The `sftp`
+# driver is likewise opt-in (`rustasea-storage/sftp`, or `storage-sftp` on the
+# `rustasea` facade crate).
 
 [storage]
 default = "local"
@@ -60,10 +61,17 @@ report = false
 # visibility = "public"
 # throw = false
 # report = false
-# # Prefer the environment / a secret manager over inline credentials.
+# # Prefer the environment over inline credentials: AWS_ACCESS_KEY_ID,
+# # AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, AWS_BUCKET, and AWS_ENDPOINT
+# # override the matching keys on every `s3` disk (blank values are ignored),
+# # and `bucket` may be left out when AWS_BUCKET is set. `.env.example` sets
+# # AWS_DEFAULT_REGION, so change the region there. With more than one `s3`
+# # disk, leave AWS_BUCKET and AWS_ENDPOINT blank and set them per disk here.
 # # access_key_id = "..."
 # # secret_access_key = "..."
-# # endpoint = "http://localhost:9000"   # S3-compatible (MinIO, R2)
+# # S3-compatible services (RustFS, MinIO, R2). An `http://` endpoint enables
+# # plain HTTP for local development; any other endpoint stays HTTPS-only.
+# # endpoint = "http://localhost:9000"
 #
 # [storage.disks.gcs]
 # driver = "gcs"

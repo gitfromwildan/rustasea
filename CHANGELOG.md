@@ -53,6 +53,15 @@ Per the same section, each tag is expected to pass `cargo xtask ci` and
 
 ### Added
 
+- 2026-09-24 - `storage-s3` umbrella feature forwarding to
+  `rustasea-storage/aws` (the `aws` feature needs rustc 1.89+ through
+  `object_store`'s `crc-fast` dependency), and a Docker-backed RustFS suite
+  (`crates/rustasea-storage/tests/rustfs_container.rs`, run with
+  `--features aws -- --ignored`) that round-trips an `s3` disk over a
+  plain-HTTP endpoint. `cargo xtask ci` and the CI test job now also cover
+  `rustasea-storage` with its opt-in `aws` and `sftp` drivers (M6;
+  `feat(rustasea): add storage-s3 umbrella feature`; `ci: lint and test
+  rustasea-storage with the aws and sftp features`).
 - 2026-09-17 - Svelte starter-kit variant with full auth/settings page parity: the
   `svelte` variant scaffolds the same 11 auth/settings pages as the react/vue
   kits on the shared Inertia contract
@@ -120,6 +129,21 @@ Per the same section, each tag is expected to pass `cargo xtask ci` and
 
 ### Changed
 
+- 2026-09-24 - `s3` disks now work with S3-compatible services such as RustFS
+  and MinIO: an explicit `http://` endpoint enables `object_store`'s
+  `allow_http` (previously every request failed with a reqwest builder error,
+  including the documented `endpoint = "http://localhost:9000"` example).
+  The `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`,
+  `AWS_BUCKET`, and `AWS_ENDPOINT` variables documented in `.env.example`,
+  previously never read, now override the matching keys of every `s3` disk
+  in `config/storage.toml`; note that the stock `.env.example` sets
+  `AWS_DEFAULT_REGION=us-east-1`. `bucket` may be omitted when `AWS_BUCKET`
+  is set, and a blank bucket is rejected with `StorageError::Config`.
+  `S3DiskConfig` moved to `rustasea_storage::s3` (still re-exported from the
+  crate root and `facade`) and redacts `secret_access_key` from `Debug`
+  output (M6; `refactor(storage): move S3DiskConfig into its own module and
+  share env helpers`; `fix(storage): support S3-compatible http endpoints
+  and AWS_* env for s3 disks`).
 - 2026-09-17 - `cargo install rustasea` now installs the application scaffolder:
   the `cargo-rustasea` binary moved into the `rustasea` facade package (ships
   behind the `scaffold` feature, enabled by default) so `cargo rustasea new`
