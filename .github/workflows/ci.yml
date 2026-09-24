@@ -67,6 +67,12 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
+      # The scaffold compile gate (`crates/rustasea-scaffold/tests/generated_compiles.rs`)
+      # runs `cargo check --offline` on every generated starter kit, and the
+      # WASM variants need crates that the host build never downloads. Fetch
+      # every locked crate, for every target, before the tests run.
+      - name: cargo fetch
+        run: cargo fetch
       - name: cargo test
         run: cargo test --workspace
 
